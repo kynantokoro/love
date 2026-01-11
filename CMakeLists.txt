@@ -1789,18 +1789,19 @@ if(EMSCRIPTEN)
 		add_definitions("-s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=8 -s USE_SDL=2 -s FULL_ES2=1 -s INVOKE_RUN=0 --post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/scripts/EmscriptenPersistence.js")
 	endif()
 
-	add_executable(${LOVE_EXE_NAME} src/love.cpp)	
-	set(EMSCRIPTEN_ARGS	
-		"-s CASE_INSENSITIVE_FS=1" # I think this is probably what most users expect (sorry linuxers)	
-		"--post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/scripts/EmscriptenPersistence.js"	
+	add_executable(${LOVE_EXE_NAME} src/love.cpp)
+	set(EMSCRIPTEN_ARGS
+		"-s CASE_INSENSITIVE_FS=1" # I think this is probably what most users expect (sorry linuxers)
+		"--post-js ${CMAKE_CURRENT_SOURCE_DIR}/src/scripts/EmscriptenPersistence.js"
 		"-s USE_SDL=2"
-		"-s MODULARIZE=1"	
-		"-s EXPORT_NAME=\"'Love'\""	
+		"-s MODULARIZE=1"
+		"-s EXPORT_NAME=\"'Love'\""
 		"-s WASM=1"
-		"-s FULL_ES2=1"	
+		"-s FULL_ES2=1"
 		"-s DISABLE_EXCEPTION_CATCHING=0" # Might be worth building a whitelist for EXCEPTION_CATCHING_WHITELIST
 		"-s ALLOW_MEMORY_GROWTH=1" # for dynamic resizing of memory, should not have a performance impact as using WASM
 		"-s FORCE_FILESYSTEM=1" # to fix Module.addDependency not existing
+		"-s EXPORTED_FUNCTIONS=['_main','_malloc','_free']" # Required for main entry point and game-loader.js memory allocation
 		"-lidbfs.js" # to fix the ReferenceError: IDBFS is not defined
         "-lwebsocket.js" # websocket API
 	)
