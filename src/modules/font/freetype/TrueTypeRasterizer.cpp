@@ -113,7 +113,13 @@ GlyphData *TrueTypeRasterizer::getGlyphData(uint32 glyph) const
 	glyphMetrics.width = bitmap.width;
 	glyphMetrics.advance = (int) (ftglyph->advance.x >> 16);
 
+#ifdef __EMSCRIPTEN__
+	// WebGL 2.0 doesn't support texture swizzling or LUMINANCE_ALPHA reliably
+	// Use RGBA8 instead of LA8
+	GlyphData *glyphData = new GlyphData(glyph, glyphMetrics, PIXELFORMAT_RGBA8);
+#else
 	GlyphData *glyphData = new GlyphData(glyph, glyphMetrics, PIXELFORMAT_LA8);
+#endif
 
 	const uint8 *pixels = bitmap.buffer;
 	uint8 *dest = (uint8 *) glyphData->getData();
@@ -127,8 +133,18 @@ GlyphData *TrueTypeRasterizer::getGlyphData(uint32 glyph) const
 			{
 				// Extract the 1-bit value and convert it to uint8.
 				uint8 v = ((pixels[x / 8]) & (1 << (7 - (x % 8)))) ? 255 : 0;
+#ifdef __EMSCRIPTEN__
+				// RGBA8: white RGB with alpha
+				int idx = 4 * (y * bitmap.width + x);
+				dest[idx + 0] = 255; // R
+				dest[idx + 1] = 255; // G
+				dest[idx + 2] = 255; // B
+				dest[idx + 3] = v;   // A
+#else
+				// LA8: luminance + alpha
 				dest[2 * (y * bitmap.width + x) + 0] = 255;
 				dest[2 * (y * bitmap.width + x) + 1] = v;
+#endif
 			}
 
 			pixels += bitmap.pitch;
@@ -140,8 +156,18 @@ GlyphData *TrueTypeRasterizer::getGlyphData(uint32 glyph) const
 		{
 			for (int x = 0; x < (int) bitmap.width; x++)
 			{
+#ifdef __EMSCRIPTEN__
+				// RGBA8: white RGB with alpha
+				int idx = 4 * (y * bitmap.width + x);
+				dest[idx + 0] = 255;      // R
+				dest[idx + 1] = 255;      // G
+				dest[idx + 2] = 255;      // B
+				dest[idx + 3] = pixels[x]; // A
+#else
+				// LA8: luminance + alpha
 				dest[2 * (y * bitmap.width + x) + 0] = 255;
 				dest[2 * (y * bitmap.width + x) + 1] = pixels[x];
+#endif
 			}
 
 			pixels += bitmap.pitch;

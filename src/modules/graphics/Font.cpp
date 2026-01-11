@@ -166,6 +166,19 @@ void Font::createTexture()
 			for (size_t i = 0; i < pixelcount; i++)
 				emptydata[i * 2 + 0] = 255;
 		}
+#ifdef __EMSCRIPTEN__
+		// Emscripten uses RGBA8 for fonts instead of LA8
+		else if (pixelFormat == PIXELFORMAT_RGBA8)
+		{
+			for (size_t i = 0; i < pixelcount; i++)
+			{
+				emptydata[i * 4 + 0] = 255; // R
+				emptydata[i * 4 + 1] = 255; // G
+				emptydata[i * 4 + 2] = 255; // B
+				// Alpha is already 0 from initialization
+			}
+		}
+#endif
 
 		Rect rect = {0, 0, size.width, size.height};
 		image->replacePixels(emptydata.data(), emptydata.size(), 0, 0, rect, false);

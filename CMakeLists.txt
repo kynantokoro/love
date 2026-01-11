@@ -1798,6 +1798,8 @@ if(EMSCRIPTEN)
 		"-s EXPORT_NAME=\"'Love'\""
 		"-s WASM=1"
 		"-s FULL_ES2=1"
+		"-s MAX_WEBGL_VERSION=2" # Enable WebGL 2.0 support
+		"-s MIN_WEBGL_VERSION=2" # Require WebGL 2.0 (drop WebGL 1.0 fallback)
 		"-s DISABLE_EXCEPTION_CATCHING=0" # Might be worth building a whitelist for EXCEPTION_CATCHING_WHITELIST
 		"-s ALLOW_MEMORY_GROWTH=1" # for dynamic resizing of memory, should not have a performance impact as using WASM
 		"-s FORCE_FILESYSTEM=1" # to fix Module.addDependency not existing

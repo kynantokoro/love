@@ -1158,6 +1158,8 @@ bool OpenGL::rawTexStorage(TextureType target, int levels, PixelFormat pixelform
 	GLenum gltarget = getGLTextureType(target);
 	TextureFormat fmt = convertPixelFormat(pixelformat, false, isSRGB);
 
+	// WebGL 2.0 does not support texture swizzling
+#ifndef __EMSCRIPTEN__
 	if (fmt.swizzled)
 	{
 		glTexParameteri(gltarget, GL_TEXTURE_SWIZZLE_R, fmt.swizzle[0]);
@@ -1165,6 +1167,7 @@ bool OpenGL::rawTexStorage(TextureType target, int levels, PixelFormat pixelform
 		glTexParameteri(gltarget, GL_TEXTURE_SWIZZLE_B, fmt.swizzle[2]);
 		glTexParameteri(gltarget, GL_TEXTURE_SWIZZLE_A, fmt.swizzle[3]);
 	}
+#endif
 
 	if (isTexStorageSupported())
 	{
@@ -1451,6 +1454,13 @@ OpenGL::TextureFormat OpenGL::convertPixelFormat(PixelFormat pixelformat, bool r
 		break;
 
 	case PIXELFORMAT_LA8:
+#ifdef __EMSCRIPTEN__
+		// WebGL 2.0 doesn't support texture swizzling or LUMINANCE_ALPHA reliably
+		// Use RGBA8 instead (data is converted from LA to RGBA in TrueTypeRasterizer)
+		f.internalformat = GL_RGBA8;
+		f.externalformat = GL_RGBA;
+		f.type = GL_UNSIGNED_BYTE;
+#else
 		if (gl.isCoreProfile() || GLAD_ES_VERSION_3_0)
 		{
 			f.internalformat = GL_RG8;
@@ -1466,6 +1476,7 @@ OpenGL::TextureFormat OpenGL::convertPixelFormat(PixelFormat pixelformat, bool r
 			f.externalformat = GL_LUMINANCE_ALPHA;
 			f.type = GL_UNSIGNED_BYTE;
 		}
+#endif
 		break;
 
 	case PIXELFORMAT_RGBA4:
