@@ -122,6 +122,9 @@ public:
 	virtual int getFreeBufferCount() const = 0;
 	virtual bool queue(void *data, size_t length, int dataSampleRate, int dataBitDepth, int dataChannels) = 0;
 
+	// Check if source is ready to play (useful for streaming sources to check buffering status)
+	virtual bool isReady() const = 0;
+
 	virtual Type getType() const;
 
 	static bool getConstant(const char *in, Type &out);

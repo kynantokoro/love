@@ -21,8 +21,19 @@
 // LOVE
 #include "wrap_Audio.h"
 
+#ifdef LOVE_EMSCRIPTEN
+#include "webaudio/Audio.h"
+#else
 #include "openal/Audio.h"
+#endif
+
 #include "null/Audio.h"
+#include "sound/Decoder.h"
+
+// Include emscripten for logging (always needed)
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "common/runtime.h"
 
@@ -36,6 +47,26 @@ namespace audio
 {
 
 #define instance() (Module::getInstance<Audio>(Module::M_AUDIO))
+
+#ifdef LOVE_EMSCRIPTEN
+// Stub decoder for external streaming files (files served via HTTP, not in game.data)
+class ExternalStreamDecoder : public love::sound::Decoder
+{
+public:
+	ExternalStreamDecoder() : love::sound::Decoder(nullptr, 0) {}
+	virtual ~ExternalStreamDecoder() {}
+
+	Decoder *clone() override { return new ExternalStreamDecoder(); }
+	int decode() override { return 0; }  // No data to decode
+	bool seek(double) override { return false; }
+	bool rewind() override { return false; }
+	bool isSeekable() override { return false; }
+	int getChannelCount() const override { return 2; }  // Placeholder
+	int getBitDepth() const override { return 16; }  // Placeholder
+	int getSampleRate() const override { return 44100; }  // Placeholder
+	double getDuration() override { return -1; }
+};
+#endif
 
 int w_getActiveSourceCount(lua_State *L)
 {
@@ -57,7 +88,60 @@ int w_newSource(lua_State *L)
 			return luaL_error(L, "Cannot create queueable sources using newSource. Use newQueueableSource instead.");
 	}
 
-	if (lua_isstring(L, 1) || luax_istype(L, 1, love::filesystem::File::type) || luax_istype(L, 1, love::filesystem::FileData::type))
+	// Capture filename for streaming sources (before conversion to Decoder)
+	std::string filename;
+	if (lua_isstring(L, 1) && stype == Source::TYPE_STREAM)
+	{
+		filename = std::string(lua_tostring(L, 1));
+#ifdef LOVE_EMSCRIPTEN
+		EM_ASM({
+			console.log('[wrap_Audio] Captured filename for streaming source:', UTF8ToString($0));
+		}, filename.c_str());
+#endif
+	}
+
+#ifdef LOVE_EMSCRIPTEN
+	// For streaming sources on emscripten, check if file exists in VFS using JavaScript
+	bool isExternalFile = false;
+	if (stype == Source::TYPE_STREAM && lua_isstring(L, 1))
+	{
+		// Check if file exists in virtual filesystem using FS.analyzePath
+		isExternalFile = EM_ASM_INT({
+			var filename = UTF8ToString($0);
+			try {
+				// Check if LOVE_INTERNAL is initialized
+				if (!Module.LOVE_INTERNAL || !Module.LOVE_INTERNAL.FS) {
+					console.log('[wrap_Audio] LOVE_INTERNAL not yet initialized, treating as external:', filename);
+					return 1; // true (assume external if can't check VFS yet)
+				}
+
+				var FS = Module.LOVE_INTERNAL.FS;
+				var result = FS.analyzePath(filename);
+				if (!result.exists) {
+					console.log('[wrap_Audio] File not in VFS, treating as external:', filename);
+					return 1; // true
+				}
+				console.log('[wrap_Audio] File exists in VFS:', filename);
+				return 0; // false
+			} catch (e) {
+				console.log('[wrap_Audio] Error checking VFS, treating as external:', e);
+				return 1; // true (assume external on error)
+			}
+		}, filename.c_str());
+	}
+#endif
+
+	// Only convert to Decoder if not an external streaming file
+	bool shouldConvertToDecoder = (lua_isstring(L, 1) || luax_istype(L, 1, love::filesystem::File::type) || luax_istype(L, 1, love::filesystem::FileData::type));
+#ifdef LOVE_EMSCRIPTEN
+	if (shouldConvertToDecoder && isExternalFile)
+	{
+		// Skip decoder conversion for external streaming files
+		shouldConvertToDecoder = false;
+	}
+#endif
+
+	if (shouldConvertToDecoder)
 		luax_convobj(L, 1, "sound", "newDecoder");
 
 	if (stype == Source::TYPE_STATIC && luax_istype(L, 1, love::sound::Decoder::type))
@@ -70,7 +154,36 @@ int w_newSource(lua_State *L)
 			t = instance()->newSource(luax_totype<love::sound::SoundData>(L, 1));
 		else if (luax_istype(L, 1, love::sound::Decoder::type))
 			t = instance()->newSource(luax_totype<love::sound::Decoder>(L, 1));
+#ifdef LOVE_EMSCRIPTEN
+		else if (isExternalFile && stype == Source::TYPE_STREAM)
+		{
+			// Create streaming source with stub decoder for external files
+			EM_ASM({
+				console.log('[wrap_Audio] Creating streaming source with stub decoder for external file');
+			});
+			ExternalStreamDecoder *decoder = new ExternalStreamDecoder();
+			t = instance()->newSource(decoder);
+			decoder->release();
+		}
+#endif
 	});
+
+	// Set filename for streaming sources
+#ifdef LOVE_EMSCRIPTEN
+	if (t != nullptr && stype == Source::TYPE_STREAM && !filename.empty())
+	{
+		EM_ASM({
+			console.log('[wrap_Audio] Setting filename for streaming source:', UTF8ToString($0));
+		}, filename.c_str());
+		dynamic_cast<love::audio::webaudio::Source*>(t)->setStreamFilename(filename);
+	}
+	else if (t != nullptr && stype == Source::TYPE_STREAM)
+	{
+		EM_ASM({
+			console.log('[wrap_Audio] Streaming source created but filename is empty!');
+		});
+	}
+#endif
 
 	if (t != nullptr)
 	{
@@ -587,7 +700,22 @@ extern "C" int luaopen_love_audio(lua_State *L)
 
 	if (instance == nullptr)
 	{
-		// Try OpenAL first.
+#ifdef LOVE_EMSCRIPTEN
+		// Use Web Audio API for emscripten builds.
+		try
+		{
+			instance = new love::audio::webaudio::Audio();
+		}
+		catch(love::Exception &e)
+		{
+#ifdef __EMSCRIPTEN__
+			EM_ASM({
+				console.error('[Web Audio] Failed to create backend:', UTF8ToString($0));
+			}, e.what());
+#endif
+		}
+#else
+		// Try OpenAL for native builds.
 		try
 		{
 			instance = new love::audio::openal::Audio();
@@ -596,9 +724,12 @@ extern "C" int luaopen_love_audio(lua_State *L)
 		{
 			std::cout << e.what() << std::endl;
 		}
+#endif
 	}
 	else
+	{
 		instance->retain();
+	}
 
 	if (instance == nullptr)
 	{

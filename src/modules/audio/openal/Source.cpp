@@ -1514,6 +1514,13 @@ bool Source::getActiveEffects(std::vector<std::string> &list) const
 	return true;
 }
 
+bool Source::isReady() const
+{
+	// OpenAL sources are always ready to play
+	// OpenAL handles buffering and streaming in a separate thread
+	return true;
+}
+
 } // openal
 } // audio
 } // love

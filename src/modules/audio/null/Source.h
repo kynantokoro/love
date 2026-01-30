@@ -82,6 +82,8 @@ public:
 	virtual int getFreeBufferCount() const;
 	virtual bool queue(void *data, size_t length, int dataSampleRate, int dataBitDepth, int dataChannels);
 
+	virtual bool isReady() const;
+
 	virtual bool setFilter(const std::map<Filter::Parameter, float> &params);
 	virtual bool setFilter();
 	virtual bool getFilter(std::map<Filter::Parameter, float> &params);

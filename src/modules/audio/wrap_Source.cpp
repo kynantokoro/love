@@ -268,6 +268,13 @@ int w_Source_isPlaying(lua_State *L)
 	return 1;
 }
 
+int w_Source_isReady(lua_State *L)
+{
+	Source *t = luax_checksource(L, 1);
+	luax_pushboolean(L, t->isReady());
+	return 1;
+}
+
 int w_Source_setVolumeLimits(lua_State *L)
 {
 	Source *t = luax_checksource(L, 1);
@@ -639,6 +646,7 @@ static const luaL_Reg w_Source_functions[] =
 	{ "setLooping", w_Source_setLooping },
 	{ "isLooping", w_Source_isLooping },
 	{ "isPlaying", w_Source_isPlaying },
+	{ "isReady", w_Source_isReady },
 
 	{ "setVolumeLimits", w_Source_setVolumeLimits },
 	{ "getVolumeLimits", w_Source_getVolumeLimits },

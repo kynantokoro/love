@@ -376,15 +376,36 @@ set(LOVE_SRC_MODULE_AUDIO_OPENAL
 	src/modules/audio/openal/Effect.h
 )
 
-set(LOVE_SRC_MODULE_AUDIO
-	${LOVE_SRC_MODULE_AUDIO_ROOT}
-	${LOVE_SRC_MODULE_AUDIO_NULL}
-	${LOVE_SRC_MODULE_AUDIO_OPENAL}
+set(LOVE_SRC_MODULE_AUDIO_WEBAUDIO
+	src/modules/audio/webaudio/Audio.cpp
+	src/modules/audio/webaudio/Audio.h
+	src/modules/audio/webaudio/Pool.cpp
+	src/modules/audio/webaudio/Pool.h
+	src/modules/audio/webaudio/Source.cpp
+	src/modules/audio/webaudio/Source.h
+	src/modules/audio/webaudio/RecordingDevice.h
+	src/modules/audio/webaudio/Filter.h
+	src/modules/audio/webaudio/Effect.h
 )
+
+if(EMSCRIPTEN)
+	set(LOVE_SRC_MODULE_AUDIO
+		${LOVE_SRC_MODULE_AUDIO_ROOT}
+		${LOVE_SRC_MODULE_AUDIO_NULL}
+		${LOVE_SRC_MODULE_AUDIO_WEBAUDIO}
+	)
+else()
+	set(LOVE_SRC_MODULE_AUDIO
+		${LOVE_SRC_MODULE_AUDIO_ROOT}
+		${LOVE_SRC_MODULE_AUDIO_NULL}
+		${LOVE_SRC_MODULE_AUDIO_OPENAL}
+	)
+endif()
 
 source_group("modules\\audio" FILES ${LOVE_SRC_MODULE_AUDIO_ROOT})
 source_group("modules\\audio\\null" FILES ${LOVE_SRC_MODULE_AUDIO_NULL})
 source_group("modules\\audio\\openal" FILES ${LOVE_SRC_MODULE_AUDIO_OPENAL})
+source_group("modules\\audio\\webaudio" FILES ${LOVE_SRC_MODULE_AUDIO_WEBAUDIO})
 
 #
 # love.data
@@ -1767,6 +1788,12 @@ if(MSVC)
 endif()
 
 add_library(${LOVE_LIB_NAME} SHARED ${LOVE_LIB_SRC} ${LOVE_RC})
+
+# Define LOVE_EMSCRIPTEN for Web Audio backend selection
+if(EMSCRIPTEN)
+	target_compile_definitions(${LOVE_LIB_NAME} PRIVATE LOVE_EMSCRIPTEN)
+endif()
+
 target_link_libraries(${LOVE_LIB_NAME} ${LOVE_LINK_LIBRARIES} ${LOVE_3P})
 
 if(LOVE_EXTRA_DEPENDECIES)

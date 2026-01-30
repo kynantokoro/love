@@ -279,6 +279,12 @@ bool Source::getActiveEffects(std::vector<std::string> &) const
 	return false;
 }
 
+bool Source::isReady() const
+{
+	// Null backend always reports ready (no actual audio processing)
+	return true;
+}
+
 } // null
 } // audio
 } // love

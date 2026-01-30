@@ -18,8 +18,8 @@
  * 3. This notice may not be removed or altered from any source distribution.
  **/
 
-#ifndef LOVE_AUDIO_OPENAL_SOURCE_H
-#define LOVE_AUDIO_OPENAL_SOURCE_H
+#ifndef LOVE_AUDIO_WEBAUDIO_SOURCE_H
+#define LOVE_AUDIO_WEBAUDIO_SOURCE_H
 
 // LOVE
 #include "common/config.h"
@@ -29,70 +29,19 @@
 #include "sound/SoundData.h"
 #include "sound/Decoder.h"
 #include "Audio.h"
-#include "Filter.h"
 
 // STL
 #include <vector>
-#include <stack>
-
-// C
-#include <float.h>
-
-// OpenAL
-#ifdef LOVE_APPLE_USE_FRAMEWORKS
-#ifdef LOVE_IOS
-#include <OpenAL/alc.h>
-#include <OpenAL/al.h>
-#else
-#include <OpenAL-Soft/alc.h>
-#include <OpenAL-Soft/al.h>
-#endif
-#else
-#include <AL/alc.h>
-#include <AL/al.h>
-#endif
 
 namespace love
 {
 namespace audio
 {
-namespace openal
+namespace webaudio
 {
-
-#ifdef LOVE_IOS
-// OpenAL on iOS barfs if the max distance is +inf.
-static const float MAX_ATTENUATION_DISTANCE = 1000000.0f;
-#else
-static const float MAX_ATTENUATION_DISTANCE = FLT_MAX;
-#endif
 
 class Audio;
 class Pool;
-
-// Basically just a reference-counted non-streaming OpenAL buffer object.
-class StaticDataBuffer : public love::Object
-{
-public:
-
-	StaticDataBuffer(ALenum format, const ALvoid *data, ALsizei size, ALsizei freq);
-	virtual ~StaticDataBuffer();
-
-	inline ALuint getBuffer() const
-	{
-		return buffer;
-	}
-
-	inline ALsizei getSize() const
-	{
-		return size;
-	}
-
-private:
-
-	ALuint buffer;
-	ALsizei size;
-
-}; // StaticDataBuffer
 
 class Source : public love::audio::Source
 {
@@ -157,89 +106,55 @@ public:
 	virtual int getFreeBufferCount() const;
 	virtual bool queue(void *data, size_t length, int dataSampleRate, int dataBitDepth, int dataChannels);
 
-	virtual bool isReady() const;
+	// Set filename for streaming sources
+	void setStreamFilename(const std::string &filename);
 
-	void prepareAtomic();
-	void teardownAtomic();
-
-	bool playAtomic(ALuint source);
-	void stopAtomic();
-	void pauseAtomic();
-	void resumeAtomic();
-
-	static bool play(const std::vector<love::audio::Source*> &sources);
-	static void stop(const std::vector<love::audio::Source*> &sources);
-	static void pause(const std::vector<love::audio::Source*> &sources);
-
-	static std::vector<love::audio::Source*> pause(Pool *pool);
-	static void stop(Pool *pool);
+	// Check if streaming source is ready to play (buffered enough data)
+	bool isReady() const;
 
 private:
 
 	void reset();
 
-	void setFloatv(float *dst, const float *src) const;
+	Pool *pool;
 
-	int streamAtomic(ALuint buffer, love::sound::Decoder *d);
+	// Unique ID for this source instance
+	int sourceId;
 
-	Pool *pool = nullptr;
-	ALuint source = 0;
-	bool valid = false;
+	// Static source data
+	StrongRef<love::sound::SoundData> staticBuffer;
 
-	const static int DEFAULT_BUFFERS = 8;
-	const static int MAX_BUFFERS = 64;
-	std::queue<ALuint> streamBuffers;
-	std::stack<ALuint> unusedBuffers;
+	// Streaming decoder (for TYPE_STREAM)
+	StrongRef<love::sound::Decoder> decoder;
 
-	StrongRef<StaticDataBuffer> staticBuffer;
+	// Filename for streaming sources (TYPE_STREAM)
+	std::string streamFilename;
 
-	float pitch = 1.0f;
-	float volume = 1.0f;
+	// Playback state
+	bool playing;
+	bool paused;
+	bool looping;
+
+	// Audio properties
+	float volume;
+	float pitch;
+
+	// Channel info
+	int channels;
+	int sampleRate;
+
+	// Position/spatial (stubbed for bare minimum)
 	float position[3];
 	float velocity[3];
 	float direction[3];
-	bool relative = false;
-	bool looping = false;
-	float minVolume = 0.0f;
-	float maxVolume = 1.0f;
-	float referenceDistance = 1.0f;
-	float rolloffFactor = 1.0f;
-	float absorptionFactor = 0.0f;
-	float maxDistance = MAX_ATTENUATION_DISTANCE;
 
-	struct Cone
-	{
-		int innerAngle = 360; // degrees
-		int outerAngle = 360; // degrees
-		float outerVolume = 0.0f;
-		float outerHighGain = 1.0f;
-	} cone;
+	// Unique source ID counter
+	static int nextSourceId;
 
-	int offsetSamples = 0;
-
-	int sampleRate = 0;
-	int channels = 0;
-	int bitDepth = 0;
-
-	StrongRef<love::sound::Decoder> decoder;
-
-	unsigned int toLoop = 0;
-	ALsizei bufferedBytes = 0;
-	int buffers = 0;
-
-	Filter *directfilter = nullptr;
-
-	struct EffectMapStorage
-	{
-		Filter *filter;
-		ALuint slot, target;
-	};
-	std::map<std::string, EffectMapStorage> effectmap;
-	std::stack<ALuint> slotlist;
 }; // Source
 
-} // openal
+} // webaudio
 } // audio
 } // love
 
-#endif // LOVE_AUDIO_OPENAL_SOURCE_H
+#endif // LOVE_AUDIO_WEBAUDIO_SOURCE_H
