@@ -63,6 +63,7 @@ public:
 	virtual void setPitch(float pitch);
 	virtual float getPitch() const;
 	virtual void setVolume(float volume);
+	virtual void setVolume(float volume, float rampTime);  // Web Audio-specific: volume with ramp
 	virtual float getVolume() const;
 	virtual void seek(double offset, Unit unit);
 	virtual double tell(Unit unit);

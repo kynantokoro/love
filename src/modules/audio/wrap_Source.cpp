@@ -91,7 +91,18 @@ int w_Source_setVolume(lua_State *L)
 {
 	Source *t = luax_checksource(L, 1);
 	float p = (float)luaL_checknumber(L, 2);
-	t->setVolume(p);
+
+	// Optional rampTime parameter (Web Audio only)
+	if (lua_isnumber(L, 3))
+	{
+		float rampTime = (float)luaL_checknumber(L, 3);
+		t->setVolume(p, rampTime);
+	}
+	else
+	{
+		t->setVolume(p);
+	}
+
 	return 0;
 }
 

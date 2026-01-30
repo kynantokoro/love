@@ -556,11 +556,11 @@ float Source::getPitch() const
 
 void Source::setVolume(float volume)
 {
+	// Default: immediate volume change (no ramp)
 	this->volume = volume;
 
 	if (this->sourceType == TYPE_STREAM)
 	{
-		// Set volume for streaming audio
 		EM_ASM({
 			if (Module.audioElements && Module.audioElements[$0]) {
 				Module.audioElements[$0].gain.gain.value = $1;
@@ -569,12 +569,52 @@ void Source::setVolume(float volume)
 	}
 	else if (this->playing)
 	{
-		// Set volume for static audio
 		EM_ASM({
 			if (Module.audioSources[$0]) {
 				Module.audioSources[$0].gain.gain.value = $1;
 			}
 		}, this->sourceId, volume);
+	}
+}
+
+void Source::setVolume(float volume, float rampTime)
+{
+	// With ramp time: smooth volume transition
+	this->volume = volume;
+
+	if (this->sourceType == TYPE_STREAM)
+	{
+		EM_ASM({
+			if (Module.audioElements && Module.audioElements[$0]) {
+				var gainNode = Module.audioElements[$0].gain;
+				var ctx = Module.loveAudioContext;
+				var gain = gainNode.gain;
+				var targetVolume = $1;
+				var rampTime = $2;
+
+				// Cancel previous ramps and smoothly transition to new volume
+				gain.cancelScheduledValues(ctx.currentTime);
+				gain.setValueAtTime(gain.value, ctx.currentTime);
+				gain.linearRampToValueAtTime(targetVolume, ctx.currentTime + rampTime);
+			}
+		}, this->sourceId, volume, rampTime);
+	}
+	else if (this->playing)
+	{
+		EM_ASM({
+			if (Module.audioSources[$0]) {
+				var gainNode = Module.audioSources[$0].gain;
+				var ctx = Module.loveAudioContext;
+				var gain = gainNode.gain;
+				var targetVolume = $1;
+				var rampTime = $2;
+
+				// Cancel previous ramps and smoothly transition to new volume
+				gain.cancelScheduledValues(ctx.currentTime);
+				gain.setValueAtTime(gain.value, ctx.currentTime);
+				gain.linearRampToValueAtTime(targetVolume, ctx.currentTime + rampTime);
+			}
+		}, this->sourceId, volume, rampTime);
 	}
 }
 

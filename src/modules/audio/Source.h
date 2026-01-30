@@ -70,6 +70,7 @@ public:
 	virtual float getPitch() const = 0;
 
 	virtual void setVolume(float volume) = 0;
+	virtual void setVolume(float volume, float rampTime) { setVolume(volume); } // Optional rampTime (ignored by default)
 	virtual float getVolume() const = 0;
 
 	virtual void seek(double offset, Unit unit) = 0;
