@@ -276,9 +276,8 @@ bool Source::play()
 				var filename = UTF8ToString($1);
 				var ctx = Module.loveAudioContext;
 
-				// Convert virtual filesystem path to HTTP URL
-				// assets/audio/music.ogg → /assets/audio/music.ogg
-				var url = filename.startsWith('/') ? filename : '/' + filename;
+				// Use filename as-is (relative path) to respect <base> tag
+				var url = filename;
 
 				console.log('[Web Audio] play() called - URL:', url);
 				console.log('[Web Audio] play() called - AudioContext state:', ctx ? ctx.state : 'no context');
@@ -889,9 +888,8 @@ void Source::setStreamFilename(const std::string &filename)
 				var elem = Module.audioElements[$0];
 				var filename = UTF8ToString($1);
 
-				// Convert virtual filesystem path to HTTP URL (same as in play())
-				// assets/audio/music.ogg → /assets/audio/music.ogg
-				var url = filename.startsWith('/') ? filename : '/' + filename;
+				// Use filename as-is (relative path) to respect <base> tag
+				var url = filename;
 
 				// Set src to start preloading
 				elem.audio.src = url;
