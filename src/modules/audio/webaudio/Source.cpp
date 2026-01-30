@@ -284,10 +284,14 @@ bool Source::play()
 				console.log('[Web Audio] play() called - AudioContext state:', ctx ? ctx.state : 'no context');
 				console.log('[Web Audio] play() called - current paused state:', elem.audio.paused);
 
-				// Set the src if not already set or if changed
-				if (elem.audio.src !== url) {
+				// Set the src only if not paused (to allow resume from pause position)
+				// or if the URL has changed
+				var needsNewSrc = !elem.audio.paused || !elem.audio.src || elem.audio.src.indexOf(url) === -1;
+				if (needsNewSrc) {
 					elem.audio.src = url;
 					console.log('[Web Audio] play() - src updated');
+				} else {
+					console.log('[Web Audio] play() - resuming from pause, keeping current position');
 				}
 
 				// Resume AudioContext if suspended, THEN play audio
@@ -449,12 +453,27 @@ void Source::stop()
 
 void Source::pause()
 {
-	WEBAUDIO_WARN_ONCE("pause() not implemented - use stop() instead");
-
 	if (!this->playing || this->paused)
 		return;
 
-	// Just stop playback for both static and streaming
+	// Handle streaming sources
+	if (this->sourceType == TYPE_STREAM)
+	{
+		EM_ASM({
+			if (Module.audioElements && Module.audioElements[$0]) {
+				var elem = Module.audioElements[$0];
+				elem.audio.pause();
+				console.log('[Web Audio] pause() - streaming source paused');
+			}
+		}, this->sourceId);
+
+		this->paused = true;
+		this->playing = false;
+		return;
+	}
+
+	// For static sources, still use stop (Web Audio API doesn't have pause for BufferSourceNode)
+	WEBAUDIO_WARN_ONCE("pause() not fully implemented for static sources - use stop() instead");
 	stop();
 	this->paused = true;
 }
